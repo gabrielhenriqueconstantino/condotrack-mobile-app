@@ -1,0 +1,100 @@
+import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
+import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
+import { Button, StyleSheet, Text, View, Alert } from 'react-native';
+
+type Prop = {
+  type: string;
+  data: string;
+};
+
+export default function App() {
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
+
+  const handleBarCodeScanned = ({ type, data }: Prop | BarcodeScanningResult) => {
+    setScanned(true);
+    Alert.alert(
+      `Código ${type} escaneado`,
+      `Dados: ${data}`,
+      [
+        {
+          text: 'OK',
+          onPress: () => setScanned(false),
+        },
+      ],
+      { cancelable: false }
+    );
+  };
+
+  if (!permission) {
+    return <Text>Carregando permissões...</Text>;
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.center}>
+        <Text>Permissão da câmera não concedida.</Text>
+        <Button title="Solicitar Permissão" onPress={requestPermission} />
+      </View>
+    );
+  }
+
+  return (
+    <CameraView
+      style={styles.container}
+      onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+    >
+      <View style={styles.layerContainer}>
+        <View style={styles.layerTop} />
+        <View style={styles.layerCenter}>
+          <View style={styles.layerLeft} />
+          <View style={styles.focused} />
+          <View style={styles.layerRight} />
+        </View>
+        <View style={styles.layerBottom} />
+      </View>
+      <StatusBar style="light" />
+    </CameraView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  layerContainer: {
+    flex: 1,
+  },
+  layerTop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  layerCenter: {
+    flexDirection: 'row',
+  },
+  layerLeft: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  focused: {
+    width: 200,
+    height: 200,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  layerRight: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  layerBottom: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+});
