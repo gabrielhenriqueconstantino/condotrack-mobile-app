@@ -1,20 +1,33 @@
 // App.tsx
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, Button } from 'react-native';
-import Buttons from './components/Buttons/Buttons';
-import OcrCadastro from './components/OcrCadastro/OcrCadastro'; // futuramente você vai criar este componente
+import { View, StyleSheet, Text } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import Sidebar from './components/Sidebar/Sidebar';
+import OcrCadastro from './components/OcrCadastro/OcrCadastro';
+import Dashboard from './components/Dashboard/Dashboard';
+
+export type AppScreen = 'dashboard' | 'cadastro' | 'retirada' | 'relatorios' | 'configuracoes';
 
 export default function App() {
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
   const [showOcr, setShowOcr] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
 
-  // Função disparada ao clicar no botão "Cadastro de encomendas"
   const handleCadastroPress = () => {
     setShowOcr(true);
   };
 
-  // Função para fechar o OCR
   const handleCloseOcr = () => {
     setShowOcr(false);
+  };
+
+  const handleNavigation = (screen: AppScreen) => {
+    setCurrentScreen(screen);
+    setSidebarVisible(false);
+    
+    if (screen === 'cadastro') {
+      setShowOcr(true);
+    }
   };
 
   if (showOcr) {
@@ -23,10 +36,19 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Bem-vindo ao CondoTrack Mobile</Text>
-      <Buttons 
-        onCadastroPress={handleCadastroPress} 
-        onRetiradaPress={() => alert('Funcionalidade de retirada ainda não implementada')}
+      <StatusBar style="auto" />
+      
+      <Sidebar
+        visible={sidebarVisible}
+        currentScreen={currentScreen}
+        onNavigate={handleNavigation}
+        onClose={() => setSidebarVisible(false)}
+      />
+      
+      <Dashboard
+        onMenuPress={() => setSidebarVisible(true)}
+        currentScreen={currentScreen}
+        onCadastroPress={handleCadastroPress}
       />
     </View>
   );
@@ -35,14 +57,6 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    padding: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 40,
+    backgroundColor: '#ffffff',
   },
 });

@@ -1,75 +1,63 @@
-// Buttons.tsx
+// components/Buttons/Buttons.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-type ButtonsProps = {
-  onCadastroPress?: () => void;
-  onRetiradaPress?: () => void;
+export type ButtonsProps = {
+  onCadastroPress: () => void;
+  onRetiradaPress: () => void;
 };
 
-export default function Buttons({ onCadastroPress, onRetiradaPress }: ButtonsProps) {
+const Buttons = ({ onCadastroPress, onRetiradaPress }: ButtonsProps) => {
   return (
-    <View style={styles.buttonsContainer}>
+    <View style={styles.container}>
       <TouchableOpacity style={styles.button} onPress={onCadastroPress}>
-        <View style={[styles.circle, styles.plusCircle]}>
-          <Text style={styles.plusText}>+</Text>
+        <View style={[styles.buttonIcon, { backgroundColor: '#4CAF50' }]}>
+          <Ionicons name="add-circle" size={24} color="#fff" />
         </View>
-        <Text style={styles.buttonLabel}>Cadastro de Encomendas</Text>
+        <Text style={styles.buttonText}>Cadastro de Encomendas</Text>
+        <Ionicons name="chevron-forward" size={20} color="#666" />
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.button} onPress={onRetiradaPress}>
-        <View style={styles.circle}>
-          <FontAwesome5 name="box" size={24} color="#fff" />
+        <View style={[styles.buttonIcon, { backgroundColor: '#FF9500' }]}>
+          <Ionicons name="exit" size={24} color="#fff" />
         </View>
-        <Text style={styles.buttonLabel}>Retirada de Encomendas</Text>
+        <Text style={styles.buttonText}>Retirada de Encomendas</Text>
+        <Ionicons name="chevron-forward" size={20} color="#666" />
       </TouchableOpacity>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  buttonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  container: {
     width: '100%',
-    padding: 20,
+    gap: 12,
   },
   button: {
+    flexDirection: 'row',
     alignItems: 'center',
-    width: 140,
-    height: 140,
-    backgroundColor: '#00d1b2', // verde-ciano
-    borderRadius: 16,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#00bfa5',
-    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
-  circle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#fff',
+  buttonIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginRight: 15,
   },
-  plusCircle: {
-    // adicional, se quiser diferenciar o círculo do +
-  },
-  plusText: {
-    fontSize: 40,
-    color: '#fff',
-    lineHeight: 40,
-    textAlign: 'center',
-  },
-  buttonLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#fff',
+  buttonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
   },
 });
+
+export default Buttons;
