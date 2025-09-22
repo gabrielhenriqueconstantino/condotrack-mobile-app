@@ -1,606 +1,451 @@
 // phases/4_PhaseRecipientOcr.tsx
-import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Animated, Easing, PanResponder, StyleSheet, Dimensions, Vibration, ActivityIndicator, Alert } from 'react-native';
-import { CameraView, type CameraCapturedPicture } from 'expo-camera';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  ScrollView,
+  Animated,
+  Platform,
+  Dimensions,
+  KeyboardAvoidingView,
+  Easing
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ScreenOrientation from 'expo-screen-orientation';
-import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
+import { LinearGradient } from 'expo-linear-gradient';
 import { RecipientData } from '../OcrCadastro';
-
-const { width, height } = Dimensions.get('window');
-const CAPTURE_AREA_WIDTH = 300;
-const CAPTURE_AREA_HEIGHT = 200;
 
 export type PhaseRecipientOcrProps = {
   onOcrComplete: (data: RecipientData) => void;
   onClose: () => void;
 };
 
-// Simulador de OCR para desenvolvimento (substituir por Tesseract/ML Kit em produção)
-const simulateAdvancedOCR = (): RecipientData => {
-  const samples = [
-    {
-      nome: "JOÃO CARLOS SILVA",
-      endereco: "RUA DAS FLORES, 123 - APTO 101 - CENTRO - SÃO PAULO/SP"
-    },
-    {
-      nome: "MARIA SANTOS OLIVEIRA",
-      endereco: "AVENIDA BRASIL, 456 - BLOCO B - COPACABANA - RIO DE JANEIRO/RJ"
-    },
-    {
-      nome: "PEDRO ALMEIDA COSTA",
-      endereco: "TRAVESSA DA PAZ, 789 - JARDIM AMÉRICA - BELO HORIZONTE/MG"
-    },
-    {
-      nome: "ANA CAROLINA PEREIRA",
-      endereco: "ALAMEDA SANTOS, 1001 - CONJUNTO 205 - PARAÍSO - SÃO PAULO/SP"
-    },
-    {
-      nome: "CARLOS EDUARDO LIMA",
-      endereco: "RUA PRINCIPAL, 55 - VILA NOVA - PORTO ALEGRE/RS"
-    }
-  ];
-  
-  return samples[Math.floor(Math.random() * samples.length)];
-};
-
-// Algoritmo avançado para análise de texto de etiquetas
-const analyzePackageLabel = (text: string): RecipientData => {
-  const lines = text.split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 2 && !line.match(/^\d+$/) && !line.match(/^[A-Z]{2}$/));
-  
-  console.log('Texto analisado:', lines);
-  
-  let nome: string = '';
-  let endereco: string = '';
-  let nomeCandidates: string[] = [];
-  let addressCandidates: string[] = [];
-
-
-  // Padrões comuns em etiquetas de encomenda
-  const namePatterns = [
-    /^[A-ZÀ-Ú\s]{5,}$/,
-    /^(SR|SRA|SRTA|DR|DRA)\.?\s+[A-ZÀ-Ú\s]{3,}$/i,
-    /^[A-Z][a-zà-ú]+\s+[A-Z][a-zà-ú]+(\s+[A-Z][a-zà-ú]+)*$/
-  ];
-
-  const addressPatterns = [
-    /(RUA|AVENIDA|AV|ALAMEDA|AL|TRAVESSA|TV|RODOVIA|ROD|ESTRADA|EST)\.?\s+[A-ZÀ-Ú\s]+,?\s*\d+/i,
-    /^\d+\s*[-–]?\s*[A-ZÀ-Ú\s]+/,
-    /(APTO|APARTAMENTO|BLOCO|BL|CASA|LOTE|CONJUNTO|CJ|SALA|ANDAR)\.?\s*[A-Z0-9]+/i,
-    /(CENTRO|VILA|JARDIM|PARQUE|DISTRITO|BAIRRO|ZONA)\s+[A-ZÀ-Ú]+/i,
-    /[A-Z]{2}\s*\/\s*[A-Z]{2}/,
-    /CEP\s*:?\s*\d{5}-?\d{3}/
-  ];
-
-  // Classificar linhas
-  lines.forEach(line => {
-    // Verificar se é nome
-    const isName = namePatterns.some(pattern => pattern.test(line)) || 
-                  (line.split(' ').length >= 2 && line.split(' ').length <= 4);
-    
-    // Verificar se é endereço
-    const isAddress = addressPatterns.some(pattern => pattern.test(line)) ||
-                     line.includes(',') ||
-                     line.match(/\d+/) ||
-                     line.length > 30;
-
-    if (isName && !isAddress) {
-      nomeCandidates.push(line);
-    } else if (isAddress) {
-      addressCandidates.push(line);
-    }
-  });
-
-  // Processar nome
-  if (nomeCandidates.length > 0) {
-    nome = nomeCandidates[0]
-      .replace(/^(SR|SRA|SRTA|DR|DRA)\.?\s+/i, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  }
-
-  // Processar endereço
-  if (addressCandidates.length > 0) {
-    endereco = addressCandidates
-      .join(', ')
-      .replace(/\s+/g, ' ')
-      .replace(/,\s*,/g, ',')
-      .replace(/\bCEP[:]?\s*\d{5}-?\d{3}\b/i, '')
-      .replace(/\s*-\s*\w{2}$/, '')
-      .trim();
-  }
-
-  // Fallback inteligente
-  if (!nome && lines.length > 0) {
-    // Primeira linha provavelmente é o nome
-    nome = lines[0].trim();
-  }
-
-  if (!endereco && lines.length > 1) {
-    // Restante é provavelmente endereço
-    endereco = lines.slice(1).join(', ').trim();
-  }
-
-  console.log('Dados extraídos:', { nome, endereco });
-  
-  return { nome: nome || 'Nome não identificado', endereco: endereco || 'Endereço não identificado' };
-};
+const { width } = Dimensions.get('window');
 
 const PhaseRecipientOcr = ({ onOcrComplete, onClose }: PhaseRecipientOcrProps) => {
-  const [scanLinePos] = useState(new Animated.Value(0));
-  const [scanAreaSize, setScanAreaSize] = useState({ width: CAPTURE_AREA_WIDTH, height: CAPTURE_AREA_HEIGHT });
-  const [isLandscape, setIsLandscape] = useState(false);
+  const [nome, setNome] = useState('');
+  const [unidade, setUnidade] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
-  // Alteração 1: Substituição de flashMode por isTorchOn
-  const [isTorchOn, setIsTorchOn] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideUpAnim = useRef(new Animated.Value(20)).current;
   
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [ocrStatus, setOcrStatus] = useState('Posicionando a etiqueta...');
-  const cameraRef = useRef<CameraView>(null);
+  const unidades = [
+    { id: '1', label: 'Bloco A - Administrativo' },
+    { id: '2', label: 'Bloco B - Produção' },
+    { id: '3', label: 'Bloco C - Almoxarifado' },
+    { id: '4', label: 'Bloco D - Expedição' },
+    { id: '5', label: 'Bloco E - Laboratório' },
+  ];
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        const dx = Math.abs(gestureState.dx);
-        const dy = Math.abs(gestureState.dy);
-        return dx > 2 || dy > 2;
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        const scaleFactor = 2;
-        const newWidth = Math.max(200, Math.min(400, scanAreaSize.width + gestureState.dx * scaleFactor));
-        const newHeight = Math.max(150, Math.min(300, scanAreaSize.height + gestureState.dy * scaleFactor));
-        setScanAreaSize({ width: newWidth, height: newHeight });
-      },
-    })
-  ).current;
-
-  // Animação da linha de scanner
   useEffect(() => {
-    const animateScanLine = () => {
-      scanLinePos.setValue(0);
-      Animated.timing(scanLinePos, {
+    // Animação de entrada
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 2000,
-        easing: Easing.linear,
+        duration: 600,
         useNativeDriver: true,
-      }).start(() => {
-        if (!isProcessing) animateScanLine();
-      });
-    };
-    
-    if (!isProcessing) {
-      animateScanLine();
-    }
-    
-    return () => {
-      scanLinePos.stopAnimation();
-    };
-  }, [isProcessing, scanLinePos]);
+        easing: Platform.OS === 'ios' ? Easing.out(Easing.exp) : Easing.out(Easing.cubic)
+      }),
+      Animated.timing(slideUpAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+        easing: Platform.OS === 'ios' ? Easing.out(Easing.exp) : Easing.out(Easing.cubic)
+      })
+    ]).start();
+  }, []);
 
-  const toggleOrientation = async () => {
-    if (isLandscape) {
-      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
-      setIsLandscape(false);
-    } else {
-      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-      setIsLandscape(true);
-    }
+  const handleConfirm = () => {
+    if (!nome || !unidade) return;
+    
+    onOcrComplete({ 
+      nome, 
+      endereco: 'Av. Fernando Stecca, 3516 - Iporanga, Sorocaba - SP, 18087-149',
+      unidade
+    });
   };
 
-  // Alteração 2: A nova função para alternar a tocha
-  const toggleTorch = () => {
-    setIsTorchOn(prev => !prev);
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen);
   };
 
-  const captureLabel = async () => {
-    if (!cameraRef.current || isProcessing) return;
-    
-    setIsProcessing(true);
-    setOcrStatus('Capturando imagem...');
-    
-    try {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.9,
-        base64: true,
-        skipProcessing: true,
-        exif: false
-      });
-
-      setOcrStatus('Processando imagem...');
-
-      const cropRegion = {
-        originX: (width - scanAreaSize.width) / 2,
-        originY: (height - scanAreaSize.height) / 2 - 100,
-        width: scanAreaSize.width,
-        height: scanAreaSize.height
-      };
-
-      const manipulatedImage = await ImageManipulator.manipulateAsync(
-        photo.uri,
-        [
-          { crop: cropRegion },
-          { rotate: 0 },
-          { flip: ImageManipulator.FlipType.Vertical },
-        ],
-        { 
-          compress: 0.8, 
-          format: ImageManipulator.SaveFormat.JPEG, 
-          base64: true 
-        }
-      );
-
-      setOcrStatus('Analisando texto...');
-
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const ocrResult = simulateAdvancedOCR();
-      
-      const extractedData = analyzePackageLabel(
-        `${ocrResult.nome}\n${ocrResult.endereco}\n${Math.random().toString(36).substring(7)}`
-      );
-
-      setOcrStatus('Dados extraídos!');
-
-      Vibration.vibrate(100);
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      onOcrComplete(extractedData);
-      
-    } catch (error) {
-      console.error('Erro no processamento da etiqueta:', error);
-      setOcrStatus('Erro ao processar');
-      
-      Alert.alert(
-        'Erro',
-        'Não foi possível processar a etiqueta. Verifique a iluminação e tente novamente.',
-        [{ text: 'OK', onPress: () => setIsProcessing(false) }]
-      );
-    }
+  const selectUnidade = (item: string) => {
+    setUnidade(item);
+    setIsDropdownOpen(false);
   };
 
-  const handleManualEntry = () => {
-    Alert.alert(
-      'Entrada Manual',
-      'Deseja inserir os dados manualmente?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Inserir Manualmente', 
-          onPress: () => onOcrComplete({ nome: '', endereco: '' })
-        }
-      ]
-    );
-  };
+  const isFormValid = nome.trim().length > 0 && unidade.length > 0;
 
   return (
-    <CameraView
-      ref={cameraRef}
-      style={StyleSheet.absoluteFill}
-      // Alteração 3: Use 'enableTorch' com o estado booleano
-      enableTorch={isTorchOn}
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.overlay}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Leitura da Etiqueta</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={28} color="white" />
-          </TouchableOpacity>
+      <LinearGradient
+        colors={['#f8fbff', '#f0f7ff']}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      {/* Header */}
+      <Animated.View 
+        style={[
+          styles.header,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideUpAnim }]
+          }
+        ]}
+      >
+        <TouchableOpacity 
+          onPress={onClose} 
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chevron-back" size={28} color="#2D2D2D" />
+        </TouchableOpacity>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Dados do Destinatário</Text>
+          <Text style={styles.headerSubtitle}>Etapa 2 de 3</Text>
         </View>
+        <View style={styles.headerPlaceholder} />
+      </Animated.View>
 
-        {/* Instruções */}
-        <View style={styles.instructionContainer}>
-          <Text style={styles.instructionText}>
-            Posicione a etiqueta da encomenda dentro do quadro
-          </Text>
-          <Text style={styles.statusText}>{ocrStatus}</Text>
-        </View>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View 
+          style={[
+            styles.content,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideUpAnim }]
+            }
+          ]}
+        >
+          <View style={styles.formContainer}>
+            <Text style={styles.sectionTitle}>Informações Pessoais</Text>
+            
+            {/* Input Nome */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Nome Completo</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="person-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Digite o nome completo"
+                  placeholderTextColor="#9CA3AF"
+                  value={nome}
+                  onChangeText={setNome}
+                  autoCapitalize="words"
+                />
+              </View>
+            </View>
 
-        {/* Área de captura */}
-        <View style={styles.middle}>
-          <View style={styles.side} />
-          <View 
-            style={[styles.focusedContainer, { width: scanAreaSize.width, height: scanAreaSize.height }]}
-            {...panResponder.panHandlers}
+            {/* Input Endereço (bloqueado) */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Endereço</Text>
+              <View style={[styles.inputWrapper, styles.disabledInput]}>
+                <Ionicons name="location-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, styles.disabledText]}
+                  value="Av. Fernando Stecca, 3516 - Iporanga, Sorocaba - SP, 18087-149"
+                  editable={false}
+                  multiline
+                />
+                <Ionicons name="lock-closed" size={16} color="#9CA3AF" style={styles.lockIcon} />
+              </View>
+              <Text style={styles.helperText}>Endereço padrão da empresa</Text>
+            </View>
+
+            {/* Dropdown Unidade/Bloco */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Unidade/Bloco</Text>
+              <TouchableOpacity 
+                style={[styles.inputWrapper, styles.dropdownTrigger]}
+                onPress={toggleDropdown}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="business-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                <Text style={[styles.input, !unidade && styles.placeholderText]}>
+                  {unidade || 'Selecione a unidade/bloco'}
+                </Text>
+                <Ionicons 
+                  name={isDropdownOpen ? "chevron-up" : "chevron-down"} 
+                  size={20} 
+                  color="#6B7280" 
+                />
+              </TouchableOpacity>
+
+              {isDropdownOpen && (
+                <View style={styles.dropdown}>
+                  {unidades.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.dropdownItem}
+                      onPress={() => selectUnidade(item.label)}
+                    >
+                      <Text style={styles.dropdownItemText}>{item.label}</Text>
+                      {unidade === item.label && (
+                        <Ionicons name="checkmark" size={18} color="#4F46E5" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+        </Animated.View>
+      </ScrollView>
+
+      {/* Botão de Confirmação */}
+      <Animated.View 
+        style={[
+          styles.footer,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideUpAnim }]
+          }
+        ]}
+      >
+        <TouchableOpacity 
+          style={[styles.confirmButton, !isFormValid && styles.confirmButtonDisabled]} 
+          onPress={handleConfirm}
+          disabled={!isFormValid}
+          activeOpacity={0.9}
+        >
+          <LinearGradient
+            colors={isFormValid ? ['#6B46E5', '#8B66EA'] : ['#E5E7EB', '#D1D5DB']}
+            style={styles.gradientButton}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
           >
-            <View style={styles.cornerTopLeft} />
-            <View style={styles.cornerTopRight} />
-            <Animated.View 
-              style={[
-                styles.scanLine,
-                {
-                  transform: [{
-                    translateY: scanLinePos.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, scanAreaSize.height]
-                    })
-                  }]
-                }
-              ]} 
+            <Text style={[styles.confirmButtonText, !isFormValid && styles.confirmButtonTextDisabled]}>
+              Confirmar Dados
+            </Text>
+            <Ionicons 
+              name="arrow-forward" 
+              size={20} 
+              color={isFormValid ? "white" : "#9CA3AF"} 
             />
-            <View style={styles.cornerBottomLeft} />
-            <View style={styles.cornerBottomRight} />
-            
-            <View style={styles.resizeHandleTop} />
-            <View style={styles.resizeHandleBottom} />
-            <View style={styles.resizeHandleLeft} />
-            <View style={styles.resizeHandleRight} />
-          </View>
-          <View style={styles.side} />
-        </View>
-
-        {/* Controles */}
-        <View style={styles.bottomControls}>
-          <View style={styles.controlRow}>
-            <TouchableOpacity style={styles.controlButton} onPress={toggleOrientation}>
-              <Ionicons name={isLandscape ? "phone-portrait" : "phone-landscape"} size={24} color="white" />
-            </TouchableOpacity>
-            
-            {/* Alteração 4: Chamar a nova função toggleTorch e ajustar o ícone */}
-            <TouchableOpacity style={styles.controlButton} onPress={toggleTorch}>
-              <Ionicons name={isTorchOn ? "flash" : "flash-off"} size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.mainControls}>
-            <TouchableOpacity 
-              style={[styles.captureButton, isProcessing && styles.captureButtonDisabled]} 
-              onPress={captureLabel}
-              disabled={isProcessing}
-            >
-              <Ionicons name="camera" size={32} color="white" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.manualButton} onPress={handleManualEntry}>
-              <Text style={styles.manualButtonText}>Inserir Manualmente</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
-      {/* Overlay de processamento */}
-      {isProcessing && (
-        <View style={styles.processingOverlay}>
-          <View style={styles.processingContainer}>
-            <ActivityIndicator size="large" color="#4A90E2" />
-            <Text style={styles.processingText}>{ocrStatus}</Text>
-          </View>
-        </View>
-      )}
-    </CameraView>
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: { 
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'white',
   },
   header: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 2,
     zIndex: 10,
+  },
+  backButton: {
+    padding: 5,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+  },
+  headerTitleContainer: {
+    alignItems: 'center',
   },
   headerTitle: {
-    color: 'white',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#2D2D2D',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
   },
-  closeButton: {
-    padding: 5,
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Regular',
   },
-  instructionContainer: {
+  headerPlaceholder: {
+    width: 34,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  content: {
+    padding: 20,
+  },
+  formContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 20,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
+  },
+  inputContainer: {
+    marginBottom: 24,
+    position: 'relative',
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 16,
+    height: 56,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#111827',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Regular',
+    paddingVertical: 0,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  lockIcon: {
+    marginLeft: 8,
+  },
+  disabledInput: {
+    backgroundColor: '#F3F4F6',
+  },
+  disabledText: {
+    color: '#6B7280',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Regular',
+  },
+  dropdownTrigger: {
+    justifyContent: 'space-between',
+  },
+  placeholderText: {
+    color: '#9CA3AF',
+  },
+  dropdown: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 1000,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: '#374151',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Regular',
+  },
+  footer: {
     position: 'absolute',
-    top: 100,
+    bottom: 0,
     left: 0,
     right: 0,
-    alignItems: 'center',
-    zIndex: 10,
+    padding: 20,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 5,
   },
-  instructionText: {
+  confirmButton: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#4F46E5',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  confirmButtonDisabled: {
+    shadowColor: '#9CA3AF',
+  },
+  gradientButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  confirmButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 5,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
   },
-  statusText: {
-    color: '#4A90E2',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  middle: { 
-    flexDirection: 'row',
-    height: height * 0.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  side: { 
-    flex: 1, 
-    backgroundColor: 'rgba(0,0,0,0.6)' 
-  },
-  focusedContainer: {
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(74, 144, 226, 0.8)',
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  scanLine: {
-    height: 3,
-    width: '100%',
-    backgroundColor: '#4A90E2',
-    position: 'absolute',
-    opacity: 0.8,
-  },
-  cornerTopLeft: {
-    position: 'absolute',
-    top: -2,
-    left: -2,
-    width: 25,
-    height: 25,
-    borderLeftWidth: 4,
-    borderTopWidth: 4,
-    borderColor: '#4A90E2',
-    borderTopLeftRadius: 8,
-  },
-  cornerTopRight: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 25,
-    height: 25,
-    borderRightWidth: 4,
-    borderTopWidth: 4,
-    borderColor: '#4A90E2',
-    borderTopRightRadius: 8,
-  },
-  cornerBottomLeft: {
-    position: 'absolute',
-    bottom: -2,
-    left: -2,
-    width: 25,
-    height: 25,
-    borderLeftWidth: 4,
-    borderBottomWidth: 4,
-    borderColor: '#4A90E2',
-    borderBottomLeftRadius: 8,
-  },
-  cornerBottomRight: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 25,
-    height: 25,
-    borderRightWidth: 4,
-    borderBottomWidth: 4,
-    borderColor: '#4A90E2',
-    borderBottomRightRadius: 8,
-  },
-  resizeHandleTop: {
-    position: 'absolute',
-    top: -12,
-    left: '50%',
-    width: 40,
-    height: 6,
-    backgroundColor: '#4A90E2',
-    borderRadius: 3,
-    marginLeft: -20,
-  },
-  resizeHandleBottom: {
-    position: 'absolute',
-    bottom: -12,
-    left: '50%',
-    width: 40,
-    height: 6,
-    backgroundColor: '#4A90E2',
-    borderRadius: 3,
-    marginLeft: -20,
-  },
-  resizeHandleLeft: {
-    position: 'absolute',
-    left: -12,
-    top: '50%',
-    width: 6,
-    height: 40,
-    backgroundColor: '#4A90E2',
-    borderRadius: 3,
-    marginTop: -20,
-  },
-  resizeHandleRight: {
-    position: 'absolute',
-    right: -12,
-    top: '50%',
-    width: 6,
-    height: 40,
-    backgroundColor: '#4A90E2',
-    borderRadius: 3,
-    marginTop: -20,
-  },
-  bottomControls: {
-    position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  controlRow: {
-    flexDirection: 'row',
-    gap: 20,
-    marginBottom: 20,
-  },
-  controlButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mainControls: {
-    alignItems: 'center',
-    gap: 15,
-  },
-  captureButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#4A90E2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'white',
-  },
-  captureButtonDisabled: {
-    backgroundColor: '#999',
-  },
-  manualButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 20,
-  },
-  manualButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  processingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  processingContainer: {
-    alignItems: 'center',
-    padding: 30,
-    backgroundColor: 'white',
-    borderRadius: 15,
-    minWidth: 200,
-  },
-  processingText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
-    textAlign: 'center',
+  confirmButtonTextDisabled: {
+    color: '#9CA3AF',
   },
 });
 

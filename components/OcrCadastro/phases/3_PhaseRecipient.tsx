@@ -1,52 +1,179 @@
 // phases/3_PhaseRecipient.tsx
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  Animated, 
+  Easing,
+  Platform,
+  Dimensions 
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export type PhaseRecipientProps = {
   onProcessOcr: () => void;
   onClose: () => void;
 };
 
+const { width, height } = Dimensions.get('window');
+
 const PhaseRecipient = ({ onProcessOcr, onClose }: PhaseRecipientProps) => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideUpAnim = useRef(new Animated.Value(30)).current;
+  const progressWidth = useRef(new Animated.Value(0)).current;
+  const iconScale = useRef(new Animated.Value(0.5)).current;
+  const checkmarkOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Animação de entrada
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic)
+      }),
+      Animated.timing(slideUpAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic)
+      }),
+      Animated.timing(iconScale, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.back(1.5))
+      })
+    ]).start();
+
+    // Animação da barra de progresso
+    Animated.timing(progressWidth, {
+      toValue: width * 0.7,
+      duration: 3500,
+      useNativeDriver: false,
+      easing: Easing.linear
+    }).start();
+
+    // Temporizador para avançar automaticamente após 3.5 segundos
+    const timer = setTimeout(() => {
+      // Animação de confirmação antes de avançar
+      Animated.sequence([
+        Animated.timing(checkmarkOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true
+        }),
+        Animated.delay(500)
+      ]).start(() => {
+        onProcessOcr();
+      });
+    }, 3500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#4A90E2" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Destinatário</Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
+      <LinearGradient
+        colors={['#f5f9ff', '#e6f0ff']}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      {/* Header */}
+      <Animated.View 
+        style={[
+          styles.header,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideUpAnim }]
+          }
+        ]}
+      >
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Destinatário</Text>
+          <Text style={styles.headerSubtitle}>Etapa 2 de 3</Text>
+        </View>
+      </Animated.View>
 
-      <View style={styles.content}>
-        <View style={styles.phaseIndicator}>
-          <View style={[styles.phaseDot, styles.phaseDotCompleted]}>
-            <Ionicons name="checkmark" size={20} color="white" />
+      <Animated.View 
+        style={[
+          styles.content,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideUpAnim }]
+          }
+        ]}
+      >
+        {/* Indicador de progresso */}
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBackground}>
+            <Animated.View 
+              style={[
+                styles.progressFill,
+                { width: progressWidth }
+              ]} 
+            />
           </View>
-          <View style={styles.phaseLineCompleted} />
-          <View style={[styles.phaseDot, styles.phaseDotActive]}>
-            <Text style={styles.phaseText}>2</Text>
-          </View>
-          <View style={styles.phaseLine} />
-          <View style={styles.phaseDot}>
-            <Text style={styles.phaseText}>3</Text>
-          </View>
+          <Text style={styles.progressText}>Preparando formulário...</Text>
         </View>
 
-        <View style={styles.instructionContainer}>
-          <Ionicons name="document-text" size={60} color="#4A90E2" style={styles.icon} />
-          <Text style={styles.title}>Capture os dados do destinatário</Text>
+        {/* Conteúdo principal */}
+        <View style={styles.messageContainer}>
+          <Animated.View 
+            style={[
+              styles.iconContainer,
+              {
+                transform: [{ scale: iconScale }]
+              }
+            ]}
+          >
+            <LinearGradient
+              colors={['#6B46E5', '#8B66EA']}
+              style={styles.iconCircle}
+            >
+              <Ionicons name="person" size={36} color="white" />
+              <Animated.View 
+                style={[
+                  styles.checkmarkContainer,
+                  { opacity: checkmarkOpacity }
+                ]}
+              >
+                <Ionicons name="checkmark-circle" size={24} color="#21D272" style={styles.checkmark} />
+              </Animated.View>
+            </LinearGradient>
+          </Animated.View>
+          
+          <Text style={styles.title}>Dados do Destinatário</Text>
           <Text style={styles.subtitle}>
-            Posicione o documento dentro do quadro da câmera para capturar automaticamente os dados
+            Em instantes, você será direcionado para preencher as informações do destinatário
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.processButton} onPress={onProcessOcr}>
-          <Ionicons name="camera" size={24} color="white" />
-          <Text style={styles.processButtonText}>Capturar Documento</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Loading animation */}
+        <View style={styles.loadingDots}>
+          <Animated.View style={[styles.dot, { opacity: fadeAnim }]} />
+          <Animated.View style={[styles.dot, { opacity: fadeAnim }]} />
+          <Animated.View style={[styles.dot, { opacity: fadeAnim }]} />
+        </View>
+      </Animated.View>
+
+      {/* Footer */}
+      <Animated.View 
+        style={[
+          styles.footer,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideUpAnim }]
+          }
+        ]}
+      >
+        <Text style={styles.footerText}>
+          Sistema de coleta de dados automatizado
+        </Text>
+      </Animated.View>
     </View>
   );
 };
@@ -57,100 +184,144 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingTop: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    padding: 24,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    backgroundColor: 'white',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 10,
   },
-  backButton: {
-    padding: 5,
+  headerContent: {
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#2D2D2D',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
+    marginBottom: 4,
   },
-  headerPlaceholder: {
-    width: 34,
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Regular',
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: 24,
     alignItems: 'center',
-  },
-  phaseIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 40,
-    marginTop: 20,
-  },
-  phaseDot: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#e0e0e0',
     justifyContent: 'center',
+  },
+  progressContainer: {
+    width: '100%',
     alignItems: 'center',
+    marginBottom: 60,
   },
-  phaseDotCompleted: {
-    backgroundColor: '#4CAF50',
+  progressBackground: {
+    width: width * 0.7,
+    height: 6,
+    backgroundColor: '#E8E8E8',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 12,
   },
-  phaseDotActive: {
-    backgroundColor: '#4A90E2',
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#6B46E5',
+    borderRadius: 3,
   },
-  phaseText: {
-    color: 'white',
-    fontWeight: 'bold',
+  progressText: {
+    fontSize: 13,
+    color: '#666',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Regular',
   },
-  phaseLine: {
-    width: 40,
-    height: 2,
-    backgroundColor: '#e0e0e0',
-    marginHorizontal: 5,
-  },
-  phaseLineCompleted: {
-    width: 40,
-    height: 2,
-    backgroundColor: '#4CAF50',
-    marginHorizontal: 5,
-  },
-  instructionContainer: {
+  messageContainer: {
     alignItems: 'center',
     marginBottom: 40,
     paddingHorizontal: 20,
+    width: '100%',
   },
-  icon: {
-    marginBottom: 20,
+  iconContainer: {
+    marginBottom: 30,
+    position: 'relative',
+  },
+  iconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#6B46E5',
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  checkmarkContainer: {
+    position: 'absolute',
+    bottom: -5,
+    right: -5,
+    backgroundColor: 'white',
+    borderRadius: 12,
+  },
+  checkmark: {
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#2D2D2D',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 16,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
+    lineHeight: 34,
   },
   subtitle: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Regular',
   },
-  processButton: {
+  loadingDots: {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#4A90E2',
-    paddingVertical: 15,
-    paddingHorizontal: 25,
-    borderRadius: 10,
-    gap: 10,
+    marginTop: 20,
   },
-  processButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#6B46E5',
+    marginHorizontal: 6,
+  },
+  footer: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Regular',
   },
 });
 
