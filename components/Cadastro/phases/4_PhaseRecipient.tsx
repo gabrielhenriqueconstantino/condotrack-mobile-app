@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { RecipientData } from '../OcrCadastro';
+import { RecipientData } from '../Cadastro';
 
 export type PhaseRecipientOcrProps = {
   onOcrComplete: (data: RecipientData) => void;

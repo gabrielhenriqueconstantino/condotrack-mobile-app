@@ -23,7 +23,7 @@ export type PhaseSuccessProps = {
 
 const { width, height } = Dimensions.get('window');
 
-const PhaseSuccess = ({ barcodeResult, onTimeout, onClose }: PhaseSuccessProps) => {
+const PhaseBarcodeSuccess = ({ barcodeResult, onTimeout, onClose }: PhaseSuccessProps) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
@@ -314,4 +314,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PhaseSuccess;
+export default PhaseBarcodeSuccess;

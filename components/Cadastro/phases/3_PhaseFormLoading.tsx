@@ -19,7 +19,7 @@ export type PhaseRecipientProps = {
 
 const { width, height } = Dimensions.get('window');
 
-const PhaseRecipient = ({ onProcessOcr, onClose }: PhaseRecipientProps) => {
+const PhaseFormLoading = ({ onProcessOcr, onClose }: PhaseRecipientProps) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideUpAnim = useRef(new Animated.Value(30)).current;
   const progressWidth = useRef(new Animated.Value(0)).current;
@@ -325,4 +325,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PhaseRecipient;
+export default PhaseFormLoading;

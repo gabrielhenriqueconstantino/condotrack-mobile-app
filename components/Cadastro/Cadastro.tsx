@@ -2,39 +2,39 @@
 import React, { useState } from 'react';
 import { View, Text, Button, StyleSheet, ActivityIndicator } from 'react-native';
 import { useCameraPermissions } from 'expo-camera';
-import PhaseBarcode from '../OcrCadastro/phases/1_PhaseBarcode';
-import PhaseSuccess from '../OcrCadastro/phases/2_PhaseSuccess';
-import PhaseRecipient from '../OcrCadastro/phases/3_PhaseRecipient';
-import PhaseRecipientOcr from '../OcrCadastro/phases/4_PhaseRecipientOcr';
-import PhaseRecipientSuccess from '../OcrCadastro/phases/5_PhaseRecipientSuccess';
-import PhaseConfirm from '../OcrCadastro/phases/6_PhaseConfirm';
-import PhaseFinal from '../OcrCadastro/phases/7_PhaseFinal';
+import PhaseBarcode from './phases/1_PhaseBarcode';
+import PhaseBarcodeSuccess from './phases/2_PhaseBarcodeSuccess';
+import PhaseFormLoading from './phases/3_PhaseFormLoading';
+import PhaseRecipientOcr from './phases/4_PhaseRecipient'
+import PhaseRecipientSuccess from './phases/5_PhaseRecipientSuccess';
+import PhaseFinal from './phases/6_PhaseFinal';
 
 export type OcrCadastroPhase = 
   | 'barcode' 
   | 'success' 
   | 'recipient' 
   | 'recipientOcr' 
-  | 'recipientSuccess' 
-  | 'confirm' 
+  | 'recipientSuccess'  
   | 'final';
 
 export type RecipientData = {
   nome: string;
   endereco: string;
+  unidade: string; 
 };
 
 export type OcrCadastroProps = {
   onClose: () => void;
 };
 
-const OcrCadastro = ({ onClose }: OcrCadastroProps) => {
+const Cadastro = ({ onClose }: OcrCadastroProps) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<OcrCadastroPhase>('barcode');
   const [barcodeResult, setBarcodeResult] = useState('');
   const [recipientData, setRecipientData] = useState<RecipientData>({ 
     nome: '', 
-    endereco: '' 
+    endereco: '',
+    unidade: '' // <- adiciona aqui
   });
   const [loading, setLoading] = useState(false);
 
@@ -80,7 +80,7 @@ const OcrCadastro = ({ onClose }: OcrCadastroProps) => {
       
       case 'success':
         return (
-          <PhaseSuccess
+          <PhaseBarcodeSuccess
             barcodeResult={barcodeResult}
             onTimeout={() => setPhase('recipient')}
             onClose={onClose}
@@ -89,7 +89,7 @@ const OcrCadastro = ({ onClose }: OcrCadastroProps) => {
       
       case 'recipient':
         return (
-          <PhaseRecipient
+          <PhaseFormLoading
             onProcessOcr={() => setPhase('recipientOcr')}
             onClose={onClose}
           />
@@ -110,18 +110,7 @@ const OcrCadastro = ({ onClose }: OcrCadastroProps) => {
         return (
           <PhaseRecipientSuccess
             recipientData={recipientData}
-            onConfirm={() => setPhase('confirm')}
-            onClose={onClose}
-          />
-        );
-      
-      case 'confirm':
-        return (
-          <PhaseConfirm
-            barcodeResult={barcodeResult}
-            recipientData={recipientData}
-            onDataChange={setRecipientData}
-            onRegister={() => setPhase('final')}
+            onConfirm={() => setPhase('final')}
             onClose={onClose}
           />
         );
@@ -198,4 +187,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default OcrCadastro;
+export default Cadastro;

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Sidebar from './components/Sidebar/Sidebar';
-import OcrCadastro from './components/OcrCadastro/OcrCadastro';
+import Cadastro from './components/Cadastro/Cadastro';
 import Dashboard from './components/Dashboard/Dashboard';
 
 export type AppScreen = 'dashboard' | 'cadastro' | 'retirada' | 'relatorios' | 'configuracoes';
@@ -31,7 +31,7 @@ export default function App() {
   };
 
   if (showOcr) {
-    return <OcrCadastro onClose={handleCloseOcr} />;
+    return <Cadastro onClose={handleCloseOcr} />;
   }
 
   return (
