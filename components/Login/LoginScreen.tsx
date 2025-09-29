@@ -47,23 +47,44 @@ const LoginScreen = ({ onLoginSuccess, onBack }: LoginScreenProps) => {
   }, []);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos');
+  if (!email || !password) {
+    Alert.alert('Erro', 'Por favor, preencha todos os campos');
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const response = await fetch('http://10.175.216.200:5000/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, senha: password }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Erro do backend
+      Alert.alert('Erro', data.error || 'Falha ao autenticar');
+      setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    // Login bem-sucedido
+    console.log('Usuário logado:', data.user);
 
-    // Simulação de autenticação
-    setTimeout(() => {
-      setIsLoading(false);
-      if (email === 'admin@scanexpress.com' && password === '123456') {
-        onLoginSuccess();
-      } else {
-        Alert.alert('Erro', 'Credenciais inválidas. Tente novamente.');
-      }
-    }, 1500);
-  };
+    // Aqui você pode salvar token ou dados do usuário em contexto/global state
+
+    setIsLoading(false);
+    onLoginSuccess(); // Chama callback de sucesso
+  } catch (error) {
+    console.error('Erro no login:', error);
+    Alert.alert('Erro', 'Não foi possível conectar ao servidor');
+    setIsLoading(false);
+  }
+};
 
   const handleForgotPassword = () => {
     Alert.alert('Recuperar Senha', 'Entre em contato com o suporte técnico.');
