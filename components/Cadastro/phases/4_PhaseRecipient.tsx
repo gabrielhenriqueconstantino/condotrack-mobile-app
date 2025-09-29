@@ -27,7 +27,9 @@ const { width } = Dimensions.get('window');
 const PhaseRecipientOcr = ({ onOcrComplete, onClose }: PhaseRecipientOcrProps) => {
   const [nome, setNome] = useState('');
   const [unidade, setUnidade] = useState('');
+  const [observacoes, setObservacoes] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isObservacoesFocused, setIsObservacoesFocused] = useState(false);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideUpAnim = useRef(new Animated.Value(20)).current;
@@ -64,7 +66,8 @@ const PhaseRecipientOcr = ({ onOcrComplete, onClose }: PhaseRecipientOcrProps) =
     onOcrComplete({ 
       nome, 
       endereco: 'Av. Fernando Stecca, 3516 - Iporanga, Sorocaba - SP, 18087-149',
-      unidade
+      unidade,
+      observacoes: observacoes.trim() || undefined
     });
   };
 
@@ -75,6 +78,14 @@ const PhaseRecipientOcr = ({ onOcrComplete, onClose }: PhaseRecipientOcrProps) =
   const selectUnidade = (item: string) => {
     setUnidade(item);
     setIsDropdownOpen(false);
+  };
+
+  const handleObservacoesFocus = () => {
+    setIsObservacoesFocused(true);
+  };
+
+  const handleObservacoesBlur = () => {
+    setIsObservacoesFocused(false);
   };
 
   const isFormValid = nome.trim().length > 0 && unidade.length > 0;
@@ -197,6 +208,35 @@ const PhaseRecipientOcr = ({ onOcrComplete, onClose }: PhaseRecipientOcrProps) =
                   ))}
                 </View>
               )}
+            </View>
+
+            {/* Input Observações (Opcional) */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>
+                Observações <Text style={styles.optionalText}>(opcional)</Text>
+              </Text>
+              <View style={[
+                styles.inputWrapper, 
+                styles.textAreaWrapper,
+                isObservacoesFocused ? styles.inputFocused : styles.disabledInput
+              ]}>
+                <Ionicons name="document-text-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Digite observações adicionais..."
+                  placeholderTextColor="#9CA3AF"
+                  value={observacoes}
+                  onChangeText={setObservacoes}
+                  multiline
+                  maxLength={256}
+                  onFocus={handleObservacoesFocus}
+                  onBlur={handleObservacoesBlur}
+                  textAlignVertical="top"
+                />
+              </View>
+              <Text style={styles.helperText}>
+                {observacoes.length}/256 caracteres
+              </Text>
             </View>
           </View>
         </Animated.View>
@@ -326,6 +366,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
   },
+  optionalText: {
+    color: '#6B7280',
+    fontWeight: 'normal',
+  },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -336,12 +380,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 56,
   },
+  textAreaWrapper: {
+    height: 100,
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+  },
   input: {
     flex: 1,
     fontSize: 16,
     color: '#111827',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Regular',
     paddingVertical: 0,
+  },
+  textArea: {
+    height: '100%',
+    textAlignVertical: 'top',
   },
   inputIcon: {
     marginRight: 12,
@@ -351,6 +404,10 @@ const styles = StyleSheet.create({
   },
   disabledInput: {
     backgroundColor: '#F3F4F6',
+  },
+  inputFocused: {
+    backgroundColor: 'white',
+    borderColor: '#4F46E5',
   },
   disabledText: {
     color: '#6B7280',

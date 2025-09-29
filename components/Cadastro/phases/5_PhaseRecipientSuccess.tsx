@@ -1,5 +1,5 @@
 // phases/5_PhaseRecipientSuccess.tsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -9,7 +9,9 @@ import {
   Easing,
   Platform,
   Dimensions,
-  ScrollView
+  ScrollView,
+  TextInput,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,16 +21,19 @@ export type PhaseRecipientSuccessProps = {
   recipientData: RecipientData;
   onConfirm: () => void;
   onClose: () => void;
+  onEdit: () => void;
 };
 
 const { width } = Dimensions.get('window');
 
-const PhaseRecipientSuccess = ({ recipientData, onConfirm, onClose }: PhaseRecipientSuccessProps) => {
+const PhaseRecipientSuccess = ({ recipientData, onConfirm, onClose, onEdit }: PhaseRecipientSuccessProps) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideUpAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
   const checkmarkScale = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedObservacoes, setEditedObservacoes] = useState(recipientData.observacoes || '');
 
   useEffect(() => {
     // Animação de entrada em sequência
@@ -75,6 +80,41 @@ const PhaseRecipientSuccess = ({ recipientData, onConfirm, onClose }: PhaseRecip
     inputRange: [0, 0.5, 1],
     outputRange: [0.3, 1, 0.3]
   });
+
+  const handleEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = () => {
+    // Atualiza os dados com as observações editadas
+    recipientData.observacoes = editedObservacoes;
+    setIsEditing(false);
+    
+    // Mostra feedback visual
+    Alert.alert('Sucesso', 'Observações atualizadas com sucesso!');
+  };
+
+  const handleCancelEdit = () => {
+    setEditedObservacoes(recipientData.observacoes || '');
+    setIsEditing(false);
+  };
+
+  const handleBackToEdit = () => {
+    Alert.alert(
+      'Editar Dados',
+      'Deseja voltar para editar todos os dados?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel'
+        },
+        {
+          text: 'Editar',
+          onPress: onEdit
+        }
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -175,6 +215,15 @@ const PhaseRecipientSuccess = ({ recipientData, onConfirm, onClose }: PhaseRecip
             >
               <Ionicons name="document-text" size={20} color="white" />
               <Text style={styles.cardHeaderText}>Dados do Destinatário</Text>
+              
+              {/* Botão de editar no header */}
+              <TouchableOpacity 
+                style={styles.editButton}
+                onPress={handleBackToEdit}
+              >
+                <Ionicons name="create-outline" size={16} color="white" />
+                <Text style={styles.editButtonText}>Editar</Text>
+              </TouchableOpacity>
             </LinearGradient>
             
             <View style={styles.cardContent}>
@@ -206,8 +255,77 @@ const PhaseRecipientSuccess = ({ recipientData, onConfirm, onClose }: PhaseRecip
                     <Text style={styles.fieldLabel}>Unidade/Bloco</Text>
                   </View>
                   <Text style={styles.fieldValue}>{recipientData.unidade}</Text>
+                  <View style={styles.fieldDivider} />
                 </View>
               )}
+              
+              {/* Campo Observações */}
+              <View style={styles.dataField}>
+                <View style={styles.fieldHeader}>
+                  <Ionicons name="document-text-outline" size={16} color="#6B7280" />
+                  <Text style={styles.fieldLabel}>
+                    Observações {!isEditing && (
+                      <Text style={styles.optionalText}>(opcional)</Text>
+                    )}
+                  </Text>
+                  
+                  {/* Botão de editar observações */}
+                  {!isEditing && (
+                    <TouchableOpacity 
+                      style={styles.editObservacoesButton}
+                      onPress={handleEdit}
+                    >
+                      <Ionicons name="create-outline" size={14} color="#4F46E5" />
+                      <Text style={styles.editObservacoesText}>Editar</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                
+                {isEditing ? (
+                  <View style={styles.editContainer}>
+                    <View style={[styles.inputWrapper, styles.textAreaWrapper]}>
+                      <Ionicons name="document-text-outline" size={16} color="#6B7280" style={styles.inputIcon} />
+                      <TextInput
+                        style={[styles.input, styles.textArea]}
+                        placeholder="Digite observações adicionais..."
+                        placeholderTextColor="#9CA3AF"
+                        value={editedObservacoes}
+                        onChangeText={setEditedObservacoes}
+                        multiline
+                        maxLength={256}
+                        textAlignVertical="top"
+                        autoFocus
+                      />
+                    </View>
+                    <Text style={styles.helperText}>
+                      {editedObservacoes.length}/256 caracteres
+                    </Text>
+                    
+                    {/* Botões de ação para edição */}
+                    <View style={styles.editActions}>
+                      <TouchableOpacity 
+                        style={[styles.editActionButton, styles.cancelButton]}
+                        onPress={handleCancelEdit}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancelar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.editActionButton, styles.saveButton]}
+                        onPress={handleSaveEdit}
+                      >
+                        <Text style={styles.saveButtonText}>Salvar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={[
+                    styles.fieldValue, 
+                    !recipientData.observacoes && styles.emptyObservacoes
+                  ]}>
+                    {recipientData.observacoes || 'Nenhuma observação adicionada'}
+                  </Text>
+                )}
+              </View>
             </View>
           </View>
           
@@ -215,7 +333,10 @@ const PhaseRecipientSuccess = ({ recipientData, onConfirm, onClose }: PhaseRecip
           <View style={styles.infoBox}>
             <Ionicons name="information-circle" size={20} color="#4F46E5" />
             <Text style={styles.infoText}>
-              Os dados serão registrados em nosso sistema e o destinatário será notificado.
+              {isEditing 
+                ? 'Edite as observações conforme necessário. As alterações serão salvas imediatamente.'
+                : 'Os dados serão registrados em nosso sistema e o destinatário será notificado.'
+              }
             </Text>
           </View>
         </Animated.View>
@@ -375,6 +496,7 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     gap: 10,
   },
@@ -382,6 +504,22 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
+    flex: 1,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  editButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
   },
   cardContent: {
@@ -403,6 +541,12 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    flex: 1,
+  },
+  optionalText: {
+    color: '#9CA3AF',
+    fontWeight: 'normal',
+    textTransform: 'none',
   },
   fieldValue: {
     fontSize: 16,
@@ -411,9 +555,96 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 12,
   },
+  emptyObservacoes: {
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+  },
   fieldDivider: {
     height: 1,
     backgroundColor: '#F3F4F6',
+  },
+  editObservacoesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F5FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  editObservacoesText: {
+    color: '#4F46E5',
+    fontSize: 11,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
+  },
+  editContainer: {
+    marginTop: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+  },
+  textAreaWrapper: {
+    height: 100,
+    paddingVertical: 12,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#111827',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Regular',
+    paddingVertical: 0,
+  },
+  textArea: {
+    height: '100%',
+    textAlignVertical: 'top',
+  },
+  inputIcon: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Regular',
+  },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 16,
+  },
+  editActionButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  saveButton: {
+    backgroundColor: '#4F46E5',
+  },
+  cancelButtonText: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
   },
   infoBox: {
     flexDirection: 'row',

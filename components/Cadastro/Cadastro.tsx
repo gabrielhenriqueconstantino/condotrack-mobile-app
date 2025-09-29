@@ -20,7 +20,8 @@ export type OcrCadastroPhase =
 export type RecipientData = {
   nome: string;
   endereco: string;
-  unidade: string; 
+  unidade: string;
+  observacoes: string;
 };
 
 export type OcrCadastroProps = {
@@ -34,7 +35,8 @@ const Cadastro = ({ onClose }: OcrCadastroProps) => {
   const [recipientData, setRecipientData] = useState<RecipientData>({ 
     nome: '', 
     endereco: '',
-    unidade: '' // <- adiciona aqui
+    unidade: '', // <- adiciona aqui
+    observacoes: '',
   });
   const [loading, setLoading] = useState(false);
 
