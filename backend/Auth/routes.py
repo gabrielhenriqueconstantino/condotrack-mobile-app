@@ -16,17 +16,29 @@ def login():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT id, nome_completo, email, senha_hash FROM usuarios WHERE email = %s", (email,))
+    cur.execute("""
+        SELECT u.id, u.nome_completo, u.email, u.senha_hash, c.nome AS condominio_nome
+        FROM usuarios u
+        LEFT JOIN condominios c ON u.condominio_id = c.id
+        WHERE u.email = %s
+    """, (email,))
     user = cur.fetchone()
     conn.close()
 
     if not user:
         return jsonify({'error': 'Usuário não encontrado'}), 404
 
-    user_id, nome_completo, email_db, senha_hash = user
+    user_id, nome_completo, email_db, senha_hash, condominio_nome = user
 
     if not check_password_hash(senha_hash, senha):
         return jsonify({'error': 'Senha incorreta'}), 401
 
-    # Aqui você pode gerar um token JWT se quiser
-    return jsonify({'message': 'Login realizado com sucesso', 'user': {'id': user_id, 'nome': nome_completo, 'email': email_db}})
+    return jsonify({
+        'message': 'Login realizado com sucesso',
+        'user': {
+            'id': user_id,
+            'nome': nome_completo,
+            'email': email_db,
+            'condominio': condominio_nome
+        }
+    })

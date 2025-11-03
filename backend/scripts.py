@@ -1,5 +1,3 @@
 from werkzeug.security import generate_password_hash
+print(generate_password_hash("admin"))
 
-senha = "admin"  # a senha que você quer para o usuário admin
-hash_valido = generate_password_hash(senha)
-print(hash_valido)

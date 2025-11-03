@@ -20,7 +20,10 @@ export type SidebarProps = {
   currentScreen: AppScreen;
   onNavigate: (screen: AppScreen) => void;
   onClose: () => void;
+  user?: { nome: string; condominio: string } | null; // 👈 nova prop
+  onLogout?: () => void; // nova prop
 };
+
 
 // ✅ Tipagem dos nomes de ícones válidos
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -32,15 +35,42 @@ type MenuItem = {
   color: string;
 };
 
-const Sidebar = ({ visible, currentScreen, onNavigate, onClose }: SidebarProps) => {
+const Sidebar = ({ visible, currentScreen, onNavigate, onClose, user, onLogout }: SidebarProps) => {
   const translateX = React.useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
+  const overlayOpacity = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
-    Animated.timing(translateX, {
-      toValue: visible ? 0 : -SIDEBAR_WIDTH,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    if (visible) {
+      // Animação de entrada mais suave
+      Animated.parallel([
+        Animated.spring(translateX, {
+          toValue: 0,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        })
+      ]).start();
+    } else {
+      // Animação de saída
+      Animated.parallel([
+        Animated.spring(translateX, {
+          toValue: -SIDEBAR_WIDTH,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        })
+      ]).start();
+    }
   }, [visible]);
 
   const menuItems: MenuItem[] = [
@@ -76,14 +106,20 @@ const Sidebar = ({ visible, currentScreen, onNavigate, onClose }: SidebarProps) 
     },
   ];
 
-  if (!visible) return null;
-
+  // Não retornar null, deixar a animação cuidar da visibilidade
   return (
     <>
       <Animated.View 
         style={[
           styles.sidebar,
-          { transform: [{ translateX }] }
+          { 
+            transform: [{ translateX }],
+            // Adiciona sombra durante a animação
+            shadowOpacity: translateX.interpolate({
+              inputRange: [-SIDEBAR_WIDTH, 0],
+              outputRange: [0, 0.25],
+            }),
+          }
         ]}
       >
         <View style={styles.sidebarHeader}>
@@ -92,8 +128,8 @@ const Sidebar = ({ visible, currentScreen, onNavigate, onClose }: SidebarProps) 
               <Ionicons name="person" size={32} color="#fff" />
             </View>
             <View>
-              <Text style={styles.userName}>Administrador</Text>
-              <Text style={styles.userRole}>Condomínio Sol Nascente</Text>
+              <Text style={styles.userName}>{user?.nome || 'Usuário'}</Text>
+              <Text style={styles.userRole}>{user?.condominio || 'Condomínio'}</Text>
             </View>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -109,7 +145,10 @@ const Sidebar = ({ visible, currentScreen, onNavigate, onClose }: SidebarProps) 
                 styles.menuItem,
                 currentScreen === item.id && styles.menuItemActive
               ]}
-              onPress={() => onNavigate(item.id)}
+              onPress={() => {
+                onNavigate(item.id);
+                onClose(); // Fecha o sidebar após navegar
+              }}
             >
               <View style={[styles.menuIcon, { backgroundColor: item.color }]}>
                 <Ionicons name={item.icon} size={22} color="#fff" />
@@ -132,25 +171,39 @@ const Sidebar = ({ visible, currentScreen, onNavigate, onClose }: SidebarProps) 
             <Ionicons name="help-circle" size={22} color="#666" />
             <Text style={styles.footerText}>Ajuda & Suporte</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.footerItem}>
-            <Ionicons name="log-out" size={22} color="#FF3B30" />
-            <Text style={[styles.footerText, { color: '#FF3B30' }]}>Sair</Text>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.footerItem} 
+              onPress={() => {
+              onLogout?.();  // chama o callback de logout
+              onClose();     // fecha a sidebar
+            }}
+            >
+              <Ionicons name="log-out" size={22} color="#FF3B30" />
+              <Text style={[styles.footerText, { color: '#FF3B30' }]}>Sair</Text>
+            </TouchableOpacity>
         </View>
       </Animated.View>
 
-      {visible && (
+      <Animated.View 
+        style={[
+          styles.overlay, 
+          { 
+            opacity: overlayOpacity,
+            // Esconde o overlay quando a animação terminar
+            display: visible ? 'flex' : 'none'
+          }
+        ]}
+      >
         <TouchableOpacity 
-          style={styles.overlay} 
+          style={StyleSheet.absoluteFill} 
           onPress={onClose}
           activeOpacity={1}
         />
-      )}
+      </Animated.View>
     </>
   );
 };
 
-// ... estilos mantidos como estavam
 const styles = StyleSheet.create({
   sidebar: {
     position: 'absolute',
@@ -166,7 +219,6 @@ const styles = StyleSheet.create({
       width: 2,
       height: 0,
     },
-    shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
   overlay: {

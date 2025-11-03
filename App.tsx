@@ -13,25 +13,28 @@ export type AppScreen = 'dashboard' | 'cadastro' | 'retirada' | 'relatorios' | '
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<{ nome: string; condominio: string } | null>(null); // 👈 novo estado
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
   const [showOcr, setShowOcr] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
-  // Funções para o fluxo de loading e login
-  const handleLoadingComplete = () => {
-    setIsLoading(false);
-  };
+  const handleLoadingComplete = () => setIsLoading(false);
 
-  const handleLoginSuccess = () => {
+  // Funções para o fluxo de loading e login
+
+  const handleLoginSuccess = (userData: { nome: string; condominio: string }) => {
+    setUser(userData);
     setIsLoggedIn(true);
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+    setUser(null);          // Limpa usuário
     setCurrentScreen('dashboard');
     setShowOcr(false);
     setSidebarVisible(false);
   };
+
 
   // Funções existentes do app
   const handleCadastroPress = () => {
@@ -74,9 +77,10 @@ export default function App() {
       <Sidebar
         visible={sidebarVisible}
         currentScreen={currentScreen}
-        onNavigate={handleNavigation}
+        onNavigate={setCurrentScreen}
         onClose={() => setSidebarVisible(false)}
-        //onLogout={handleLogout} // Adicione esta prop ao Sidebar
+        user={user} // 👈 Passa o usuário para o Sidebar
+        onLogout={handleLogout}
       />
       
       <Dashboard

@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 const { width } = Dimensions.get('window');
 
 export type LoginScreenProps = {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (userData: { nome: string; condominio: string }) => void;
   onBack?: () => void;
 };
 
@@ -57,28 +57,28 @@ const LoginScreen = ({ onLoginSuccess, onBack }: LoginScreenProps) => {
   try {
     const response = await fetch('http://192.168.1.200:5000/auth/login', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, senha: password }),
     });
 
     const data = await response.json();
 
-    if (!response.ok) {
-      // Erro do backend
-      Alert.alert('Erro', data.error || 'Falha ao autenticar');
+    if (response.ok) {
+      console.log('Usuário logado:', data.user);
+
+      // Chama callback com os dados do usuário
+      onLoginSuccess({
+        nome: data.user.nome,
+        condominio: data.user.condominio
+      });
+
       setIsLoading(false);
-      return;
+    } else {
+      // Mostra erro do backend
+      Alert.alert('Erro', data.error || 'Falha no login');
+      setIsLoading(false); // IMPORTANTE: libera o botão
     }
 
-    // Login bem-sucedido
-    console.log('Usuário logado:', data.user);
-
-    // Aqui você pode salvar token ou dados do usuário em contexto/global state
-
-    setIsLoading(false);
-    onLoginSuccess(); // Chama callback de sucesso
   } catch (error) {
     console.error('Erro no login:', error);
     Alert.alert('Erro', 'Não foi possível conectar ao servidor');
